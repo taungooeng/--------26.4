@@ -1,3 +1,11 @@
-Load "g:\\stm32_study\\stm32_project\\wty_stm32\\Objects\\Project.axf" 
-Erase Done.Programming Done.Verify OK.Application running ...
-Flash Load finished at 22:14:51
+*** Using Compiler 'V5.06 update 5 (build 528)', folder: 'C:\Keil_v5\ARM\ARMCC\Bin'
+Build target 'Target 1'
+compiling LightSensor.c...
+Hardware\LightSensor\LightSensor.c(52): warning:  #1-D: last line of file ends without a newline
+  }
+Hardware\LightSensor\LightSensor.c: 1 warning, 0 errors
+compiling main.c...
+linking...
+Program Size: Code=20024 RO-data=904 RW-data=100 ZI-data=2940  
+".\Objects\Project.axf" - 0 Error(s), 1 Warning(s).
+Build Time Elapsed:  00:00:01

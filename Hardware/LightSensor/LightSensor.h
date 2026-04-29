@@ -5,7 +5,6 @@
 
 void LightSensor_Init(void);
 float LightSensor_GetPos(void);
-void LightSensor_nopid(void);
 #endif /* __LIGHT_SENSOR_H */
 
 

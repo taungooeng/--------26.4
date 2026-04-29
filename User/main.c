@@ -20,6 +20,7 @@
 #include "Motor.h"                      //Base    PWM.h     PWMA    (PA0)(PB4)(PB5)(PA1)(PA15)(PB3)
 #include "PID_system.h"                 //base     
 #include "LightSensor.h"
+#include "mpu6050.h"                    //陀螺仪
 
 
 //===================================================================================================
@@ -63,7 +64,12 @@ int16_t RV ;
 
 float FloatValue_1 = 90 ;
 
-
+//===================================================================================================
+// GyroZ误差积分变量
+//===================================================================================================
+float gyro_z_integrated_err = 0.0f;         // GyroZ积分误差
+#define GYRO_SCALE          (1.0f / 16.4f)  // 陀螺仪灵敏度系数（±2000°/s配置）
+#define GYRO_DT             0.02f            // 积分时间间隔（20ms）
 
 //float c_differential_speed ;
 //PID_t PID_average_speed;
@@ -274,11 +280,44 @@ void Test_PC13_LED(void)
     
 }
 //===================================================================================================
+// GyroZ误差计算任务                 (20ms)
+//===================================================================================================
+void GyroZ_ErrorTask(void)
+{
+    int16_t AccX, AccY, AccZ;
+    int16_t GyroX, GyroY, GyroZ;
+    
+    // 读取MPU6050所有数据
+    mpu6050_GetData(&AccX, &AccY, &AccZ, &GyroX, &GyroY, &GyroZ);
+    
+    // 步骤1：陀螺仪仅积分处理
+    // delta_err = GyroZ * GYRO_SCALE（将陀螺仪速度放大）
+    float delta_err = GyroZ * GYRO_SCALE;
+    
+    // 步骤2：积分计算
+    // integrated_err += delta_err * dt
+    gyro_z_integrated_err += delta_err * GYRO_DT;
+    
+    // 步骤3：限制积分误差范围（防止积分饱和）
+    if (gyro_z_integrated_err > 180.0f) {
+        gyro_z_integrated_err = 180.0f;
+    }
+    if (gyro_z_integrated_err < -180.0f) {
+        gyro_z_integrated_err = -180.0f;
+    }
+}
+//===================================================================================================
 // APP 任务                     (50ms)
 //===================================================================================================
 void APP (void)
 {
-    PID_differential_speed_track.Actual = LightSensor_GetPos();
+    // 在没有传感器的时候就用陀螺仪：
+    // fused_err = gyro_z_integrated_err
+    // 在有传感器的时候：融合两者数据
+    float sensor_actual = LightSensor_GetPos();
+    float fused_actual = sensor_actual + gyro_z_integrated_err;  // 直接与LightSensor相加
+    
+    PID_differential_speed_track.Actual = fused_actual;
     PID_Update(&PID_differential_speed_track);
     
 	Motor_Set_TIM2_ch2_PWMB(FloatValue_1- PID_differential_speed_track.Out);
@@ -317,6 +356,7 @@ NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
     
     TIM2_PWM_Init();
     Motor_Init();
+    mpu6050_Init();                 // 初始化MPU6050
     PID_System_Init();
     LightSensor_Init();
 //    Encoder1_TIM3_Init();           OLED_ShowNum(0, 3, 8, 2, OLED_8X16);OLED_Update();
@@ -333,36 +373,16 @@ NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
 
    //SCH_AddTask(jy60_PoseTask           ,10     ,7      );
     SCH_AddTask(Serial_ProcessRxData    ,10     ,8      );
+    SCH_AddTask(GyroZ_ErrorTask         ,20     ,8      );   // 陀螺仪误差计算任务
     SCH_AddTask(APP                     ,20     ,9      );
     SCH_AddTask(Test_PC13_LED           ,20     ,10     );
 //===================================================================================================
 
     while(1)
     {
-	SCH_Dispatch();
-
+    
+    SCH_Dispatch();
     }
-
-   /* float s1 = (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_14) == 0) ? 0.0f : 1.0f;
-    float s2 = (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_15) == 0) ? 0.0f : 1.0f;
-    float s3 = (GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_2 ) == 0) ? 0.0f : 1.0f;
-    float s4 = (GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_3 ) == 0) ? 0.0f : 1.0f;
-    float s5 = (GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_4 ) == 0) ? 0.0f : 1.0f;
-    float s6 = (GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_5 ) == 0) ? 0.0f : 1.0f;
-    float s7 = (GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_6 ) == 0) ? 0.0f : 1.0f;
-    float s8 = (GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_7 ) == 0) ? 0.0f : 1.0f;
-
-      Serial_Printf("%f",s1);
-	  Serial_Printf("%f",s2);
-	  Serial_Printf("%f",s3);
-	  Serial_Printf("%f",s4);
-	  Serial_Printf("%f",s5);
-	  Serial_Printf("%f",s6);
-	  Serial_Printf("%f",s7);
-	  Serial_Printf("%f",s8);
-	  Serial_Printf("\n");
-
-	DWT_Delay_ms(100);*/
     
 }
 
