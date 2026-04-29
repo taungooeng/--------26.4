@@ -15,8 +15,8 @@ void Motor_Set_TIM2_ch1_PWMA(int16_t ch1)
     }
     else
     {
-        GPIO_ResetBits(GPIOB, GPIO_Pin_7);
-        GPIO_SetBits(GPIOB, GPIO_Pin_6);    // 反转
+        GPIO_ResetBits(GPIOB, GPIO_Pin_6);
+        GPIO_SetBits(GPIOB, GPIO_Pin_7);    // 反转
         TIM_SetCompare1(TIM2, -ch1);
     }
 }
